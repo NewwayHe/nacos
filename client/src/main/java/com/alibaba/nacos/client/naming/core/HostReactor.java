@@ -37,7 +37,7 @@ import static com.alibaba.nacos.client.utils.LogUtils.NAMING_LOGGER;
  */
 public class HostReactor {
 
-    private static final long DEFAULT_DELAY = 1000L;
+    private static final long DEFAULT_DELAY = 10000L;
 
     private static final long UPDATE_HOLD_INTERVAL = 5000L;
 
@@ -320,18 +320,23 @@ public class HostReactor {
             try {
                 ServiceInfo serviceObj = serviceInfoMap.get(ServiceInfo.getKey(serviceName, clusters));
 
+                System.out.println("HostReactor serviceObj = " + serviceObj + ", serviceName = " + serviceName + ", clusters = " + clusters);
+
                 if (serviceObj == null) {
                     updateServiceNow(serviceName, clusters);
                     delayTime = DEFAULT_DELAY;
+                    System.out.println("HostReactor serviceObj = null and updateServiceNow" );
                     return;
                 }
 
                 if (serviceObj.getLastRefTime() <= lastRefTime) {
+                    System.out.println("HostReactor serviceObj updateServiceNow lastRefTime = " + lastRefTime + ", serviceObj.getLastRefTime() = " + serviceObj.getLastRefTime());
                     updateServiceNow(serviceName, clusters);
                     serviceObj = serviceInfoMap.get(ServiceInfo.getKey(serviceName, clusters));
                 } else {
                     // if serviceName already updated by push, we should not override it
                     // since the push data may be different from pull through force push
+                    System.out.println("refreshOnly serviceName = " + serviceName + ", clusters = " + clusters);
                     refreshOnly(serviceName, clusters);
                 }
 
@@ -345,12 +350,13 @@ public class HostReactor {
                 }
 
                 delayTime = serviceObj.getCacheMillis();
-
+                System.out.println("set delayTime = " + delayTime );
 
             } catch (Throwable e) {
                 NAMING_LOGGER.warn("[NA] failed to update serviceName: " + serviceName, e);
             } finally {
                 if (delayTime > 0) {
+                    System.out.println("schedule delayTime = " + delayTime );
                     executor.schedule(this, delayTime, TimeUnit.MILLISECONDS);
                 }
             }
