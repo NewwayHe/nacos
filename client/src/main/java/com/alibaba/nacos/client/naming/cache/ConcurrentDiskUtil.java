@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.FileChannel;
@@ -59,9 +60,11 @@ public class ConcurrentDiskUtil {
         throws IOException {
         RandomAccessFile fis = null;
         FileLock rlock = null;
+        FileChannel fcin = null;
         try {
             fis = new RandomAccessFile(file, "r");
-            FileChannel fcin = fis.getChannel();
+            fcin = fis.getChannel();
+            StringBuilder sb = new StringBuilder();
             int i = 0;
             do {
                 try {
@@ -79,9 +82,20 @@ public class ConcurrentDiskUtil {
             } while (null == rlock);
             int fileSize = (int)fcin.size();
             ByteBuffer byteBuffer = ByteBuffer.allocate(fileSize);
-            fcin.read(byteBuffer);
-            byteBuffer.flip();
-            return byteBufferToString(byteBuffer, charsetName);
+
+            //Bug for ByteBuffer
+            while(fcin.read(byteBuffer) != -1){
+                // explicitly casting
+                ((Buffer)byteBuffer).flip();
+                while(byteBuffer.hasRemaining()){
+                    char c = (char) byteBuffer.get();
+                    sb.append(c);
+                }
+                // explicitly casting
+                ((Buffer) byteBuffer).clear();
+            }
+
+            return  new String(sb.toString().getBytes(), charsetName);
         } finally {
             if (rlock != null) {
                 rlock.release();
@@ -90,6 +104,11 @@ public class ConcurrentDiskUtil {
             if (fis != null) {
                 fis.close();
                 fis = null;
+            }
+
+            if(fcin != null){
+                fcin.close();
+                fcin = null;
             }
         }
     }
